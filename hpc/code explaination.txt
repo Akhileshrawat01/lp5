@@ -1,0 +1,849 @@
+Sure, let's go through each line of the code and explain its purpose:
+
+```cpp
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
+#include <iostream>
+
+using namespace std;
+```
+
+- `#include "cuda_runtime.h"` and `#include "device_launch_parameters.h"`: These lines include CUDA runtime and device launch parameters header files, which provide necessary functions and definitions for CUDA programming.
+- `#include <iostream>`: This line includes the input/output stream header file, allowing us to perform input/output operations.
+- `using namespace std;`: This line specifies that we're using the `std` namespace, which includes standard C++ library components.
+
+```cpp
+__global__ void add(int* A, int* B, int* C, int size) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (tid < size) {
+        C[tid] = A[tid] + B[tid];
+    }
+}
+```
+
+- `__global__ void add(int* A, int* B, int* C, int size)`: This is a kernel function declaration, which will be executed on the GPU. It takes pointers to three arrays (`A`, `B`, and `C`) along with an integer `size` as arguments.
+- `int tid = blockIdx.x * blockDim.x + threadIdx.x;`: This line calculates a unique thread ID (`tid`) for each thread. `blockIdx.x` is the block index, `blockDim.x` is the number of threads per block, and `threadIdx.x` is the thread index within the block.
+- `if (tid < size) { C[tid] = A[tid] + B[tid]; }`: This line performs element-wise addition of arrays `A` and `B` and stores the result in array `C`. It checks if the `tid` is within the array size to avoid out-of-bounds access.
+
+```cpp
+void initialize(int* vector, int size) {
+    for (int i = 0; i < size; i++) {
+        vector[i] = rand() % 10;
+    }
+}
+```
+
+- `void initialize(int* vector, int size)`: This is a function definition to initialize an array with random values.
+- `for (int i = 0; i < size; i++) { vector[i] = rand() % 10; }`: This loop iterates over each element of the array and assigns a random value between 0 and 9 to it using the `rand()` function.
+
+```cpp
+void print(int* vector, int size) {
+    for (int i = 0; i < size; i++) {
+        cout << vector[i] << " ";
+    }
+    cout << endl;
+}
+```
+
+- `void print(int* vector, int size)`: This is a function definition to print the elements of an array.
+- `for (int i = 0; i < size; i++) { cout << vector[i] << " "; }`: This loop iterates over each element of the array and prints it to the console.
+
+The `main()` function and the remaining code handle memory allocation, data transfer between host and device, kernel invocation, and cleanup. If you need further explanation on any specific part, feel free to ask!
+Certainly! Let's break down the `main()` function and explain each part:
+
+```cpp
+int main() {
+    int N = 4;
+    int* A, * B, * C;
+
+    int vectorSize = N;
+    size_t vectorBytes = vectorSize * sizeof(int);
+
+    A = new int[vectorSize];
+    B = new int[vectorSize];
+    C = new int[vectorSize];
+
+    initialize(A, vectorSize);
+    initialize(B, vectorSize);
+
+    cout << "Vector A: ";
+    print(A, N);
+    cout << "Vector B: ";
+    print(B, N);
+```
+
+- `int main() {`: This is the entry point of the program.
+- `int N = 4;`: This defines the size of the vectors (`A`, `B`, and `C`) as 4.
+- `int* A, * B, * C;`: These pointers will be used to allocate memory for the vectors on the host.
+- `int vectorSize = N;`: This variable stores the size of each vector.
+- `size_t vectorBytes = vectorSize * sizeof(int);`: This calculates the total number of bytes required to store each vector.
+- `A = new int[vectorSize]; B = new int[vectorSize]; C = new int[vectorSize];`: These lines dynamically allocate memory for the vectors `A`, `B`, and `C` on the host using the `new` operator.
+- `initialize(A, vectorSize); initialize(B, vectorSize);`: These function calls initialize the vectors `A` and `B` with random values.
+- `cout << "Vector A: "; print(A, N); cout << "Vector B: "; print(B, N);`: These lines print the contents of vectors `A` and `B` to the console.
+
+```cpp
+    int* X, * Y, * Z;
+    cudaMalloc(&X, vectorBytes);
+    cudaMalloc(&Y, vectorBytes);
+    cudaMalloc(&Z, vectorBytes);
+
+    cudaMemcpy(X, A, vectorBytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(Y, B, vectorBytes, cudaMemcpyHostToDevice);
+```
+
+- `int* X, * Y, * Z;`: These pointers will be used to allocate memory for the vectors on the device (GPU).
+- `cudaMalloc(&X, vectorBytes); cudaMalloc(&Y, vectorBytes); cudaMalloc(&Z, vectorBytes);`: These lines allocate memory for vectors `X`, `Y`, and `Z` on the device using `cudaMalloc()`.
+- `cudaMemcpy(X, A, vectorBytes, cudaMemcpyHostToDevice); cudaMemcpy(Y, B, vectorBytes, cudaMemcpyHostToDevice);`: These lines copy the contents of vectors `A` and `B` from the host to the corresponding vectors `X` and `Y` on the device using `cudaMemcpy()`.
+
+```cpp
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
+
+    add<<<blocksPerGrid, threadsPerBlock>>>(X, Y, Z, N);
+
+    cudaMemcpy(C, Z, vectorBytes, cudaMemcpyDeviceToHost);
+
+    cout << "Addition: ";
+    print(C, N);
+```
+
+- `int threadsPerBlock = 256;`: This variable specifies the number of threads per block for the CUDA kernel.
+- `int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;`: This calculates the number of blocks needed to cover the entire vector size `N`.
+- `add<<<blocksPerGrid, threadsPerBlock>>>(X, Y, Z, N);`: This line invokes the CUDA kernel function `add` with the specified number of blocks and threads per block. It passes vectors `X`, `Y`, and `Z`, along with the size `N`.
+- `cudaMemcpy(C, Z, vectorBytes, cudaMemcpyDeviceToHost);`: This line copies the result vector `Z` from the device back to the host into vector `C`.
+- `cout << "Addition: "; print(C, N);`: This line prints the result vector `C` (which contains the element-wise addition of vectors `A` and `B`) to the console.
+
+```cpp
+    delete[] A;
+    delete[] B;
+    delete[] C;
+
+    cudaFree(X);
+    cudaFree(Y);
+    cudaFree(Z);
+
+    return 0;
+}
+```
+
+- `delete[] A; delete[] B; delete[] C;`: These lines release the memory allocated for vectors `A`, `B`, and `C` on the host using the `delete[]` operator.
+- `cudaFree(X); cudaFree(Y); cudaFree(Z);`: These lines release the memory allocated for vectors `X`, `Y`, and `Z` on the device using `cudaFree()`.
+- `return 0;`: This line indicates that the program executed successfully and returns 0 to the operating system.
+
+Certainly! Let's break down the code line by line:
+
+```cpp
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
+#include <cstdio>
+#include <ctime>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+```
+- These lines include necessary headers for CUDA programming (`cuda_runtime.h`, `device_launch_parameters.h`) as well as standard C headers (`cstdio`, `ctime`, `stdio.h`, `stdlib.h`, `time.h`).
+
+```cpp
+__global__ void calc_prod_cuda(int* A, int* B, int* C, int rows_a, int cols_a, int rows_b, int cols_b) {
+  int g = blockIdx.x * blockDim.x + threadIdx.x;
+  int col = g / rows_a, row = g % rows_a;
+    
+  C[row * rows_b + col] = 0;
+  for (int i = 0; i < cols_b; i++) {
+    C[row * cols_b + col] += A[row * cols_a + i]*B[i * cols_b + col];
+  }
+}
+```
+- This is the CUDA kernel function for matrix multiplication. Each thread calculates one element of the resulting matrix `C`. The thread index `g` is calculated based on the block index and thread index. It then computes the row and column indices of the element in `C` based on `g`. The element is computed using a dot product of corresponding rows and columns of matrices `A` and `B`.
+
+```cpp
+void calc_prod_serial(int * A, int* B, int* C, int rows_a, int cols_a, int rows_b, int cols_b) {
+  for (int i=0; i < rows_a; i++) {
+    for (int j=0; j < cols_b; j++) {
+      C[i * cols_b +j] = 0;
+      for (int k=0; k < cols_b; k++) {
+        C[i * cols_b + j] += A[i * cols_a + k] * B[k * cols_b + j];
+      }
+    }
+  }
+}
+```
+- This function performs matrix multiplication sequentially. It iterates over each element of the resulting matrix `C`, computing its value using a triple nested loop to perform the dot product of corresponding rows and columns of matrices `A` and `B`.
+
+```cpp
+void initialize_matrix(
+  int *host_a, int *host_b, int *host_prod, // Host matrices
+  int rows_a, int cols_a, // dimenstin of A 
+  int rows_b, int cols_b // dimensions of B
+) {
+  printf("Initializing matrix..\n");
+
+  //initialize A, B
+  for (int i = 0; i < rows_a * cols_a; i++) {
+    host_a[i] = i;
+  }
+  for (int i = 0; i < rows_b * cols_b; i++) {
+    host_b[i] = i+i;
+  }
+  
+  printf("Matrix initialized\n");
+  fflush(stdout);
+}
+```
+- This function initializes matrices `A` and `B` with predetermined values.
+
+```cpp
+void display_matrix(int *matrix, int rows, int cols) {
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < cols; j++) {
+      printf("%d ", matrix[i * cols + j]);
+    }
+    printf("\n");
+  }
+}
+```
+- This function displays the content of a matrix.
+
+```cpp
+void calculate_cuda(
+  int *host_a, int *host_b, int *host_prod, // Host matrices
+  int rows_a, int cols_a, // dimenstin of A 
+  int rows_b, int cols_b, // dimensions of B 
+  int rows_prod, int cols_prod, // dimensions of prod 
+  bool show_product
+) {
+  // initialize matrix on device
+  int *device_a, *device_b, *device_prod;
+
+  printf("\nCalculating PARALLEL..\n");
+
+  // Allocate on device
+  cudaMalloc((void**) &device_a, rows_a * cols_a * sizeof(int));
+  cudaMalloc((void**) &device_b, rows_b * rows_b * sizeof(int));
+  cudaMalloc((void**) &device_prod, rows_prod * cols_prod * sizeof(int));
+
+  // Copy host to device
+  cudaMemcpy(device_a, host_a, rows_a * rows_b * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(device_b, host_b, rows_b * cols_b * sizeof(int), cudaMemcpyHostToDevice);
+
+  // Define grid and block dimensions
+  dim3 blockDim(cols_b);
+  dim3 gridDim(rows_a);
+    
+  clock_t start_time = clock();
+
+  // multiply
+  calc_prod_cuda <<<gridDim, blockDim>>> (
+    device_a, device_b, device_prod, 
+    rows_a, cols_a, 
+    rows_b, cols_b
+  );
+
+  // Copy the result back to
+
+ the host
+  cudaMemcpy(host_prod, device_prod, rows_prod * cols_prod * sizeof(int), cudaMemcpyDeviceToHost);
+
+  if (show_product) {
+    printf("\nProduct is:\n");
+    display_matrix(host_prod, rows_prod, cols_prod);
+  }
+  
+  printf("\nProduct calculated in %f seconds\n", (double)(clock() - start_time) / CLOCKS_PER_SEC);
+  fflush(stdout);
+  
+  cudaFree(device_a);
+  cudaFree(device_b);
+  cudaFree(device_prod);
+}
+```
+- This function performs matrix multiplication using CUDA. It allocates memory for matrices `A`, `B`, and `prod` on the GPU, copies the data from host to device, launches the CUDA kernel function `calc_prod_cuda`, copies the result back to the host, and frees the allocated memory on the device.
+
+```cpp
+void calculate_serial(
+  int *host_a, int *host_b, int *host_prod, // Host matrices
+  int rows_a, int cols_a, // dimenstin of A 
+  int rows_b, int cols_b, // dimensions of B 
+  int rows_prod, int cols_prod, // dimensions of prod
+  bool show_product
+) {
+  clock_t start_time = clock();
+
+  printf("\nCalculating Serial..\n");
+
+  calc_prod_serial(host_a, host_b ,host_prod, rows_a, rows_b, rows_b, cols_b);
+
+  if (show_product) {
+    printf("\nProduct is:\n");
+    display_matrix(host_prod, rows_prod, cols_prod);
+  }
+
+  printf("\nProduct calculated in %f seconds\n", (double)(clock() - start_time) / CLOCKS_PER_SEC);
+  fflush(stdout);
+}
+```
+- This function performs matrix multiplication sequentially on the host CPU. It calls the `calc_prod_serial` function and measures the execution time.
+
+```cpp
+void free_matrix(int *host_a, int *host_b, int *host_prod) {
+  // free memory
+  free(host_a);
+  free(host_b);
+  free(host_prod);
+}
+```
+- This function frees the memory allocated for matrices `A`, `B`, and `prod` on the host.
+
+```cpp
+int main() {
+  int i=1;
+  while (true) {
+    if (i==1) {
+      int rows_a, cols_a, rows_b, cols_b, see_prod;
+      
+      printf("\nEnter dimensions of Matrix: ");
+      scanf("%d", &rows_a);
+
+      cols_a =  cols_b = rows_b = rows_a;
+     
+      printf("\nDo you want to see prouct? ");
+      scanf("%d", &see_prod);
+      printf("\n");
+
+      int *A, *B, *prod;
+      
+      // matrix size
+      int rows_prod = rows_a;
+      int cols_prod = cols_b;
+
+      // allocate on host
+      A = (int*) malloc (rows_a * cols_a * sizeof(int));
+      B = (int*) malloc (rows_b * cols_b * sizeof(int));
+      prod = (int*) malloc (rows_prod * cols_prod * sizeof(int));
+
+      initialize_matrix(
+        A, B, prod, 
+        rows_a, cols_a, 
+        rows_b, cols_b
+      );
+
+      calculate_cuda(
+        A, B, prod, 
+        rows_a, cols_a, 
+        rows_b, cols_b, 
+        rows_prod, cols_prod, 
+        see_prod
+      );
+
+      calculate_serial(
+        A, B, prod,
+        rows_a, cols_a,
+        rows_b, cols_b,
+        rows_prod, cols_prod,
+        see_prod
+      );
+
+      free_matrix(A, B, prod);
+    } else {
+      break;
+    }
+
+    printf("Enter 1 to calculate again? ");
+    scanf("%d", &i);
+  }
+}
+```
+- This is the main function where the user can input the dimensions of the matrices and choose whether to display the product matrix. It then initializes matrices `A` and `B`, performs matrix multiplication using both CUDA and sequential methods, and displays the execution time for both approaches. Finally, it prompts the user if they want to perform another calculation or exit the program.
+
+This code demonstrates how to perform matrix multiplication using CUDA for parallel computation and a sequential approach for comparison. It allows users to input matrix dimensions and choose whether to display the product matrix, providing a flexible and interactive experience.
+----------------------------------------------------------------------------------------------------------------
+
+
+Let's break down the code line by line:
+
+```cpp
+#include <bits/stdc++.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <omp.h>
+
+#include <chrono>
+#include <functional>
+
+using std :: chrono :: duration_cast;
+using std :: chrono :: high_resolution_clock;
+using std :: chrono :: milliseconds;
+using namespace std;
+```
+
+- This block of code includes necessary header files such as `<bits/stdc++.h>`, `<limits.h>`, `<stdlib.h>`, `<omp.h>`, `<chrono>`, and `<functional>`. These headers are required for standard C++ functionality, OpenMP parallel programming, and timing functions.
+
+```cpp
+void sequential_average(vector<int>& array);
+void sequential_max(vector<int>& array);
+void sequential_min(vector<int>& array);
+void sequential_sum(vector<int>& array);
+
+// parallel computing functions, declarations
+
+void parallel_average(vector<int>& array);
+void parallel_max(vector<int>& array);
+void parallel_min(vector<int>& array);
+void parallel_sum(vector<int>& array);
+
+// utility functions, declaration
+template <typename T> ostream& operator << (ostream& console, const vector<T>& array);
+void populating_random_values(vector<int>& array);
+void initialize_array(vector<int>& array, int N);
+
+// function to analyze the performance
+int analysis(std :: function<void()> function);
+```
+
+- These lines declare function prototypes for sequential and parallel computation of average, max, min, and sum, as well as utility functions like printing vectors, populating random values in vectors, initializing arrays, and analyzing performance.
+
+```cpp
+int main(void) {
+
+    int N = 0, sequential_execution = 0, parallel_execution = 0;
+    vector<int> array;
+
+    omp_set_num_threads(16);
+```
+
+- This is the beginning of the `main` function. It declares variables `N`, `sequential_execution`, and `parallel_execution`, and initializes a vector `array`. The function `omp_set_num_threads(16)` sets the number of threads to be used in parallel regions to 16.
+
+```cpp
+bool flag = true;
+while (flag)
+{   
+    // Menu driven program ...
+```
+
+- This initiates a while loop with `flag` as the condition, creating a menu-driven program that continues executing until `flag` becomes `false`.
+
+```cpp
+cout << "-------------------------- Menu -------------------------------"  << endl;
+cout << "1. Sequential and Parallel Min Computation   "  << endl;     
+cout << "2. Sequential and Parallel Max Computation   "  << endl;
+cout << "3. Sequential and Parallel Sum Computation   "  << endl;
+cout << "4. Sequential and Parallel Average Computation " << endl;
+cout << "5. Exit "                                        << endl;
+cout << "---------------------------------------------------------------"  << endl;
+
+int choice = -1;
+cout << "Enter the choice : ";
+cin >> choice;
+```
+
+- This block displays a menu with options for the user to choose from. It prompts the user to enter a choice and reads the input into the variable `choice`.
+
+```cpp
+switch(choice)
+{
+    case 1:
+```
+
+- This `switch` statement handles different cases based on the user's choice. For example, if the user chooses option 1, it executes the case for computing min sequentially and in parallel.
+
+```cpp
+initialize_array(array, N);
+populating_random_values(array);
+
+cout << "displaying first 10 numbers " << array;
+
+sequential_execution = analysis([&] { sequential_min(array); });
+parallel_execution   = analysis([&] { parallel_min(array); });
+```
+
+- This block initializes the array, populates it with random values, and displays the first 10 elements of the array. Then, it measures the execution time of sequential and parallel min computation using the `analysis` function.
+
+```cpp
+cout << "Sequential Min   : "   << sequential_execution << " ms" << endl;
+cout << "Parallel Min (16): "   << parallel_execution   << " ms" << endl;
+cout << "speed up           "   << (float)(sequential_execution / (float) parallel_execution) << " ms" << endl;
+```
+
+- This block prints the execution times of sequential and parallel min computation, as well as the speedup achieved by parallel computation.
+
+```cpp
+break;
+```
+
+- This `break` statement exits the `case 1` block of code.
+
+```cpp
+case 2:
+```
+
+- This `case 2` block of code handles the user's choice to compute max sequentially and in parallel. The subsequent code within this block follows a similar pattern to the code for computing min.
+
+This process repeats for each case in the switch statement, handling different computations based on the user's choice.
+
+```cpp
+return 0;
+```
+
+- This statement marks the end of the `main` function and indicates that the program has executed successfully.
+
+Now you've got a detailed breakdown of each line in the code! If you have any specific questions or need further clarification on any part, feel free to ask!
+---------------------------------------------------------------------------------------------------------------
+
+
+Sure, let's go through the code line by line:
+
+```cpp
+#include <bits/stdc++.h>
+#include <omp.h>
+```
+- This section includes necessary header files for the program: `bits/stdc++.h` is a commonly used header that includes most standard C++ libraries, and `omp.h` is the header file for OpenMP, a library for parallel programming.
+
+```cpp
+using std::chrono::duration_cast;
+using std::chrono::high_resolution_clock;
+using std::chrono::milliseconds;
+```
+- These lines import specific components from the `<chrono>` namespace for working with time measurements in the program.
+
+```cpp
+using namespace std;
+```
+- This line imports all components from the `std` namespace, allowing us to use standard C++ functions and objects without prefixing them with `std::`.
+
+```cpp
+template <typename T> ostream& operator << (ostream& console, const vector<T>& array);
+void populating_random_values(vector<int>& array);
+void initialize_array(vector<int>& array, int N);
+```
+- These lines declare function prototypes for utility functions used in the program: `operator<<` for printing vectors, `populating_random_values` for filling vectors with random values, and `initialize_array` for initializing a vector with a specified size.
+
+```cpp
+int analysis(std::function<void()> function);
+```
+- This line declares a function prototype for `analysis`, which measures the execution time of a given function.
+
+```cpp
+void sequential_bubblesort(vector<int>& array);
+void parallel_bubblesort(vector<int>& array);
+```
+- These lines declare function prototypes for sequential and parallel bubble sort algorithms.
+
+```cpp
+int main(void) {
+```
+- This line begins the definition of the `main` function.
+
+```cpp
+    int N = 0;
+    vector<int> array, temp;
+    float speed_up = 0.0f;
+```
+- These lines declare variables used within the `main` function: `N` to store the size of the input array, `array` to hold the array elements, `temp` to store a temporary copy of the array for comparison, and `speed_up` to compute the performance improvement.
+
+```cpp
+    bool flag = true;
+    while (flag) {
+```
+- This line initializes a boolean variable `flag` to `true` to control the loop execution.
+
+```cpp
+        // Menu driven program ...
+
+        cout << "-------------------------- Menu -------------------------------"  << endl;
+        cout << "1. Sequential Bubble Sort  "                                      << endl;
+        cout << "2. Parallel Bubble Sort    "                                      << endl;
+        cout << "3. Compare Sequential and Parallel Bubble Sort  "                 << endl;
+        cout << "4. Exit "                                                         << endl;
+        cout << "---------------------------------------------------------------"  << endl;
+```
+- These lines display a menu for the user to choose different options.
+
+```cpp
+        int sequential_bubblesort_time = 0, parallel_bubblesort_time = 0;
+```
+- These lines declare variables to measure the execution time of sequential and parallel bubble sort algorithms.
+
+```cpp
+        int choice = -1;
+        cout << "Enter the choice : ";
+        cin >> choice;
+```
+- This line prompts the user to enter their choice and stores it in the `choice` variable.
+
+```cpp
+        switch(choice) {
+```
+- This line begins a switch statement based on the user's choice.
+
+```cpp
+            case 1:
+```
+- This line begins the case for sequential bubble sort.
+
+```cpp
+                initialize_array(array, N);
+```
+- This line initializes the array with user-defined size.
+
+```cpp
+                cout << "----- Sequential BubbleSort ----- " << endl;
+```
+- This line indicates the start of the sequential bubble sort section.
+
+```cpp
+                populating_random_values(array);
+```
+- This line fills the array with random values.
+
+```cpp
+                cout << "Before Sorting (displaying the first 10 numbers ) " << array;
+```
+- This line prints the array before sorting.
+
+```cpp
+                sequential_bubblesort_time = analysis([&] {sequential_bubblesort(array); });
+```
+- This line measures the time taken for sequential bubble sort execution using the `analysis` function.
+
+```cpp
+                cout << "After Sorting (displaying the first 10 numbers ) " << array;
+```
+- This line prints the array after sorting.
+
+```cpp
+                cout << "Time taken to sort the array : " << sequential_bubblesort_time << " ms" << endl;
+```
+- This line prints the time taken for sequential bubble sort.
+
+```cpp
+                break;
+```
+- This line ends the case for sequential bubble sort.
+
+```cpp
+            case 2:
+```
+- This line begins the case for parallel bubble sort.
+
+```cpp
+                initialize_array(array, N);
+```
+- This line initializes the array with user-defined size.
+
+```cpp
+                cout << "Parallel BubbleSort  " << endl;
+```
+- This line indicates the start of the parallel bubble sort section.
+
+```cpp
+                populating_random_values(array);
+```
+- This line fills the array with random values.
+
+```cpp
+                cout << "Before Sorting (displaying the first 10 numbers ) " << array;
+```
+- This line prints the array before sorting.
+
+```cpp
+                omp_set_num
+
+_threads(16);
+                parallel_bubblesort_time = analysis([&] {parallel_bubblesort(array); });
+```
+- This line sets the number of threads to 16 for parallel execution and measures the time taken for parallel bubble sort execution.
+
+```cpp
+                cout << "After Sorting (displaying the first 10 numbers ) " << array;
+```
+- This line prints the array after sorting.
+
+```cpp
+                cout << "Time taken to sort the array : " << parallel_bubblesort_time << " ms" << endl;
+```
+- This line prints the time taken for parallel bubble sort.
+
+```cpp
+                break;
+```
+- This line ends the case for parallel bubble sort.
+
+```cpp
+            case 3:
+```
+- This line begins the case for comparing sequential and parallel bubble sort.
+
+```cpp
+                initialize_array(array, N);
+```
+- This line initializes the array with user-defined size.
+
+```cpp
+                cout << "Comparing Sequential and Parallel BubbleSort : " << endl;
+                populating_random_values(array);
+```
+- These lines print a message and fill the array with random values.
+
+```cpp
+                temp = array;
+```
+- This line creates a copy of the array for comparison.
+
+```cpp
+                sequential_bubblesort_time = analysis([&] {sequential_bubblesort(array); });
+```
+- This line measures the time taken for sequential bubble sort execution.
+
+```cpp
+                omp_set_num_threads(16);
+                parallel_bubblesort_time = analysis([&] {parallel_bubblesort(temp); });
+```
+- This line sets the number of threads to 16 for parallel execution and measures the time taken for parallel bubble sort execution.
+
+```cpp
+                speed_up = (float) (sequential_bubblesort_time / (float)parallel_bubblesort_time);
+```
+- This line calculates the speed-up achieved by parallel bubble sort.
+
+```cpp
+                cout << "Sequential BubbleSort Time : " << sequential_bubblesort_time <<  " ms" << endl;
+                cout << "Parallel   BubbleSort Time : " << parallel_bubblesort_time <<    " ms" << endl;
+                cout << "Speed up : " << speed_up   << endl; 
+```
+- These lines print the time taken for sequential and parallel bubble sort, along with the speed-up factor.
+
+```cpp
+                break;
+```
+- This line ends the case for comparing sequential and parallel bubble sort.
+
+```cpp
+            case 4:
+```
+- This line begins the case for exiting the program.
+
+```cpp
+                flag = false;
+```
+- This line sets the `flag` variable to `false` to exit the while loop.
+
+```cpp
+                break;
+```
+- This line ends the case for exiting the program.
+
+```cpp
+            default:
+```
+- This line begins the default case for handling invalid choices.
+
+```cpp
+                cout << "Invalid choice !!! " << endl;
+```
+- This line prints a message for invalid choices.
+
+```cpp
+                break;
+```
+- This line ends the default case.
+
+```cpp
+        }
+```
+- This line ends the switch statement.
+
+```cpp
+    }
+```
+- This line ends the while loop.
+
+```cpp
+    return 0; // terminating program
+```
+- This line returns `0` to indicate successful termination of the program.
+
+```cpp
+}
+```
+- This line ends the `main` function.
+Apologies for the oversight. Let's include the missing functions and rewrite the explanation:
+
+```cpp
+int analysis(std::function<void()> function) {
+    auto start = high_resolution_clock::now();
+    function();
+    auto end = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(end - start);
+    return duration.count();
+}
+```
+- This function measures the execution time of a given function by recording the start and end times using `high_resolution_clock`. It takes a `std::function<void()>` as input, executes the function, and returns the duration of execution in milliseconds.
+
+```cpp
+void sequential_bubblesort(vector<int>& array) {
+    int N = array.size();
+    for (int i = 0; i < N; i++) {
+        int first = i % 2;
+        for (int j = first; j < N - 1; j += 2) {
+            if (array[j] > array[j + 1]) {
+                swap(array[j], array[j + 1]);
+            }
+        }
+    }
+}
+```
+- This function implements the sequential version of the bubble sort algorithm. It iterates through the array, comparing adjacent elements and swapping them if they are in the wrong order. This process is repeated until the array is sorted.
+
+```cpp
+void parallel_bubblesort(vector<int>& array) {
+    int N = array.size();
+    for (int i = 0; i < N; i++) {
+        int first = i % 2;
+        #pragma omp parallel for shared(array, first) num_threads(16)
+        for (int j = first; j < N - 1; j += 2) {
+            if (array[j] > array[j + 1]) {
+                swap(array[j], array[j + 1]);
+            }
+        }
+    }
+}
+```
+- This function implements the parallel version of the bubble sort algorithm using OpenMP. It iterates through the array in parallel, with each thread responsible for sorting a subset of the array. The `num_threads(16)` directive sets the number of threads to 16 for parallel execution.
+
+```cpp
+template <typename T>
+ostream& operator<<(ostream& console, const vector<T>& array) {
+    int N = array.size();
+    for (int i = 0; i < min(10, N); i++) {
+        console << array[i] << "  ";
+    }
+    console << endl;
+    return console;
+}
+```
+- This function overloads the `<<` operator for output streams to allow printing of vectors. It prints the first 10 elements of the vector followed by a newline character.
+
+```cpp
+void populating_random_values(vector<int>& array) {
+    int N = array.size();
+    for (int i = 0; i < N; i++) {
+        array[i] = 1 + (rand() % 1000);
+    }
+}
+```
+- This function populates a vector with random integer values between 1 and 1000.
+
+```cpp
+void initialize_array(vector<int>& array, int N) {
+    cout << "Enter the size of the array : ";
+    cin >> N;
+    array.resize(max(10, N));
+}
+```
+- This function initializes a vector with a specified size entered by the user. If the size is less than 10, it sets the size to 10.
+
+These functions provide utility for initializing arrays, populating them with random values, performing sequential and parallel bubble sort, measuring performance, and printing vectors.
+-------------------------------------------------------------------------------------------------------------
